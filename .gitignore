@@ -1,0 +1,32 @@
+# Entorno
+.env
+.env.local
+
+# Go
+bin/
+core/coverage.out
+core/go.sum
+
+# Node.js
+scraper/node_modules/
+scraper/dist/
+
+# Datos de usuario
+cv/base/
+cv/adapted/
+exports/
+
+# Qdrant local
+qdrant_storage/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

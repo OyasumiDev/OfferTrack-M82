@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  core:
+    name: "Go - lint and test"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.2"
+      - name: Install dependencies
+        run: cd core && go mod download
+      - name: Lint
+        run: cd core && go vet ./...
+      - name: Test
+        run: cd core && go test -race ./...
+
+  scraper:
+    name: "Node.js - lint and build"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: cd scraper && npm ci
+      - name: Lint
+        run: cd scraper && npm run lint
+      - name: Build
+        run: cd scraper && npm run build
