@@ -1,10 +1,2 @@
-import { BasePortal, JobRaw, SearchParams } from "./base.portal";
-
-export class OccPortal extends BasePortal {
-  name = "occ";
-
-  async scrape(params: SearchParams): Promise<JobRaw[]> {
-    // TODO: implementar scraping de OCC Mundial
-    return [];
-  }
-}
+// scraper/src/portals/occ.portal.ts — re-export de compatibilidad → ver portals/occ/
+module.exports = require('./occ');

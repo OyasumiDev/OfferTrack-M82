@@ -1,17 +1,21 @@
-# Entorno
+# Entorno — nunca subir credenciales
 .env
 .env.local
+scraper/.env
+scraper/.env.local
 
-# Go
+# Go — binarios compilados
 bin/
+*.exe
 core/coverage.out
 core/go.sum
 
 # Node.js
 scraper/node_modules/
 scraper/dist/
+scraper/local_cache/
 
-# Datos de usuario
+# Datos de usuario (CVs y exportaciones locales)
 cv/base/
 cv/adapted/
 exports/
@@ -19,14 +23,23 @@ exports/
 # Qdrant local
 qdrant_storage/
 
+# Runtime / PIDs
+.scraper.pid
+*.pid
+
+# Claude Code (configuración local y memoria)
+.claude/
+
 # IDEs
 .vscode/
 .idea/
 *.swp
 
-# OS
+# OS / temporales
 .DS_Store
 Thumbs.db
+~$*
 
 # Logs
 *.log
+logs/

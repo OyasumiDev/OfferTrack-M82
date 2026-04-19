@@ -17,4 +17,5 @@ func init() {
 	rootCmd.AddCommand(adaptCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(tuiCmd)
 }
