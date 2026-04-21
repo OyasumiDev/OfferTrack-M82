@@ -66,7 +66,7 @@ func runSearch(cmd *cobra.Command, _ []string) error {
 	}
 
 	// Validar que el portal sea reconocido y esté disponible
-	validPortals := map[string]bool{"occ": true, "all": true}
+	validPortals := map[string]bool{"occ": true, "all": true, "indeed": true}
 	if !validPortals[selectedPortal] {
 		return fmt.Errorf(
 			"portal %q no reconocido o aún no disponible.\nPortales disponibles: occ, all",
@@ -79,11 +79,7 @@ func runSearch(cmd *cobra.Command, _ []string) error {
 	var activePortals []string
 	switch selectedPortal {
 	case "all":
-		// Cuando Computrabajo/Indeed estén verificados en producción, agregar aquí:
-		//   activePortals = []string{"occ", "computrabajo"}
-		// No se requiere ningún otro cambio en el código.
-		activePortals = []string{"occ"}
-		fmt.Println("  [info] Modo \"Todas\" activo — usando OCC por ahora.")
+		activePortals = []string{"occ", "indeed"}
 	default:
 		activePortals = []string{selectedPortal}
 	}

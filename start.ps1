@@ -6,7 +6,7 @@
 $ErrorActionPreference = "Continue"
 
 # ── Rutas ───────────────────────────────────────────────────────────────────
-$ROOT         = "C:\Users\QUERTY\Documents\OfferTrack-M82"
+$ROOT         = "C:\Users\QUERTY\OneDrive\Documents\OfferTrack-M82"
 $CORE_DIR     = "$ROOT\core"
 $SCRAPER_DIR  = "$ROOT\scraper"
 $BIN_DIR      = "$ROOT\bin"

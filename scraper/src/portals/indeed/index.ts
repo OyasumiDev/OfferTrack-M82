@@ -1,91 +1,124 @@
-// scraper/src/portals/indeed/index.ts
 const cheerio = require('cheerio') as typeof import('cheerio');
 const { BasePortal } = require('../base.portal');
+import type { JobRaw, SearchParams } from '../base.portal';
 import type { Element } from 'domhandler';
 import type { CheerioAPI } from 'cheerio';
-import type { JobRaw, SearchParams } from '../base.portal';
+import { readEmbeddedResults } from './embedded';
+import { BuildIndeedURL } from './url';
+import { INDEED_SELECTORS } from './selectors';
+
+const INDEED_BASE = 'https://mx.indeed.com';
 
 class IndeedPortal extends BasePortal {
   name = 'indeed';
-  private baseUrl = 'https://mx.indeed.com';
 
   async scrape(params: SearchParams): Promise<JobRaw[]> {
+    const maxPages = params.maxPages ?? 3;
+    const seen = new Set<string>();
     const jobs: JobRaw[] = [];
     const browser = await this.createBrowser();
 
     try {
       const page = await this.newPage(browser);
 
-      const role = encodeURIComponent(params.role);
-      const location = params.location ? encodeURIComponent(params.location) : 'México';
-      const url = `${this.baseUrl}/jobs?q=${role}&l=${location}`;
+      for (let p = 1; p <= maxPages; p++) {
+        const url = BuildIndeedURL({
+          puesto: params.role,
+          ciudad: params.location,
+          page: p,
+        });
 
-      console.log(`[indeed] Navegando a: ${url}`);
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      await this.delay();
+        console.log(`[indeed] Página ${p}: ${url}`);
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await this.delay(1500, 2500);
 
-      await page.waitForSelector('[data-testid="slider_item"], .job_seen_beacon, .tapItem', {
-        timeout: 15000,
-      }).catch(() => console.log('[indeed] Selector no encontrado, usando HTML disponible'));
+        // Intento 1: JSON embebido en window.mosaic
+        const embedded = await readEmbeddedResults(page);
+        if (embedded && embedded.length > 0) {
+          console.log(`[indeed] Página ${p}: ${embedded.length} resultados vía JSON embebido`);
+          for (const r of embedded) {
+            if (r.expired || !r.jobkey || seen.has(r.jobkey)) continue;
+            seen.add(r.jobkey);
+            jobs.push({
+              title: r.displayTitle || '',
+              company: r.company || 'Empresa confidencial',
+              description: r.snippet || r.displayTitle || '',
+              salary: r.salarySnippet?.text || '',
+              modality: r.remoteLocation ? 'remoto' : '',
+              location: r.formattedLocation || '',
+              url: `${INDEED_BASE}/viewjob?jk=${r.jobkey}`,
+              portal: 'indeed',
+              externalId: r.jobkey,
+            });
+          }
+          if (embedded.length < 15) break;
+          if (p < maxPages) await this.delay(3000, 5000);
+          continue;
+        }
 
-      const html = await page.content();
-      const $ = cheerio.load(html);
+        // Intento 2: fallback DOM con Cheerio
+        console.log(`[indeed] Página ${p}: JSON embebido vacío — usando extracción DOM`);
+        const html = await page.content();
+        const $ = cheerio.load(html);
 
-      $('[data-testid="slider_item"], .job_seen_beacon, .tapItem').each((_i: number, el: Element) => {
-        if (jobs.length >= 20) return false;
-        const job = this.extractJobFromElement($, el);
-        if (job) jobs.push(job);
-      });
+        const cards = $(INDEED_SELECTORS.cardContainer);
+        console.log(`[indeed] Página ${p}: ${cards.length} tarjetas DOM encontradas`);
 
-      console.log(`[indeed] Extraídas ${jobs.length} vacantes`);
+        if (cards.length === 0) {
+          const raw = html.substring(0, 500);
+          console.log(`[indeed] WARN: página sin resultados. Preview: ${raw}`);
+          break;
+        }
+
+        let newOnPage = 0;
+        cards.each((_i: number, el: Element) => {
+          const job = this.extractFromCard($, el);
+          if (!job || !job.externalId || seen.has(job.externalId)) return;
+          seen.add(job.externalId!);
+          jobs.push(job);
+          newOnPage++;
+        });
+
+        console.log(`[indeed] Página ${p}: ${newOnPage} nuevas vacantes (DOM)`);
+        if (cards.length < 15 || newOnPage === 0) break;
+        if (p < maxPages) await this.delay(3000, 5000);
+      }
     } catch (err) {
       console.error('[indeed] Error durante scraping:', err);
     } finally {
       await browser.close();
     }
 
+    console.log(`[indeed] Total: ${jobs.length} vacantes`);
     return jobs;
   }
 
-  private extractJobFromElement($: CheerioAPI, el: Element): JobRaw | null {
+  private extractFromCard($: CheerioAPI, el: Element): JobRaw | null {
     try {
-      const title =
-        $('[data-testid="jobTitle"] span, .jobTitle span', el).first().text().trim() ||
-        $('h2.jobTitle', el).first().text().trim();
-
-      const company =
-        $('[data-testid="company-name"], .companyName', el).first().text().trim();
-
-      const location =
-        $('[data-testid="text-location"], .companyLocation', el).first().text().trim();
-
-      const salary =
-        $('[data-testid="attribute_snippet_testid"], .salary-snippet', el).first().text().trim() || '';
-
-      const modality =
-        $('[data-testid="attribute_snippet_testid"]:last-child, [class*="remote"]', el).first().text().trim() || '';
-
-      const jk =
-        (el as any).attribs?.['data-jk'] ||
+      const jk = (el as any).attribs?.['data-jk'] ||
         $('a[data-jk]', el).first().attr('data-jk') || '';
 
-      const relativeUrl =
-        $('a[href*="/rc/clk"], a[href*="/pagead"]', el).first().attr('href') ||
-        (jk ? `/rc/clk?jk=${jk}` : '');
+      const title =
+        $(INDEED_SELECTORS.title, el).first().attr('title') ||
+        $(INDEED_SELECTORS.titleFallback, el).first().text().trim() ||
+        $('h2.jobTitle', el).first().text().trim();
 
-      const fullUrl = relativeUrl.startsWith('http')
-        ? relativeUrl
-        : `${this.baseUrl}${relativeUrl}`;
+      if (!title || !jk) return null;
 
-      if (!title || !relativeUrl) return null;
+      const company = $(INDEED_SELECTORS.company, el).first().text().trim() || 'Empresa confidencial';
+      const location = $(INDEED_SELECTORS.location, el).first().text().trim() || '';
+      const salary = $(INDEED_SELECTORS.salary, el).first().text().trim() || '';
 
       return {
         title,
-        company: company || 'Empresa confidencial',
-        description: $('[class*="summary"], [class*="snippet"]', el).text().trim() || title,
-        salary, modality, location,
-        url: fullUrl,
+        company,
+        description: title,
+        salary,
+        modality: '',
+        location,
+        url: `${INDEED_BASE}/viewjob?jk=${jk}`,
         portal: 'indeed',
+        externalId: jk,
       };
     } catch {
       return null;

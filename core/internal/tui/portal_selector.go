@@ -17,10 +17,10 @@ type PortalChoice struct {
 // Para habilitar una bolsa cuando esté lista: cambiar Available a true.
 var portalOptions = []PortalChoice{
 	{ID: "occ", Label: "🔍 OCC Mundial         (disponible)", Available: true},
-	{ID: "all", Label: "📋 Todas las bolsas    (usa OCC por ahora)", Available: true},
+	{ID: "all", Label: "📋 Todas las bolsas   (OCC + Indeed)", Available: true},
 	{ID: "", Label: "─────────────────────────────────────────────", IsSep: true},
 	{ID: "computrabajo", Label: "⏳ Computrabajo         (próximamente)", Available: false},
-	{ID: "indeed", Label: "⏳ Indeed México        (próximamente)", Available: false},
+	{ID: "indeed", Label: "🔍 Indeed México      (disponible)", Available: true},
 }
 
 // PortalSelectorModel es el modelo Bubble Tea del selector de bolsa.
