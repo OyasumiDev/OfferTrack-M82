@@ -1,11 +1,17 @@
-import { Request, Response, NextFunction } from "express";
+// scraper/src/middleware/error-handler.ts
+import type { Request, Response, NextFunction } from 'express';
 
-export function errorHandler(
-  err: Error,
+function errorHandler(
+  err: Error & { status?: number },
   _req: Request,
   res: Response,
   _next: NextFunction
-) {
-  console.error(err.stack);
-  res.status(500).json({ error: err.message });
+): void {
+  console.error('[error-handler]', err.stack || err.message);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error',
+    status: err.status || 500,
+  });
 }
+
+module.exports = { errorHandler };
